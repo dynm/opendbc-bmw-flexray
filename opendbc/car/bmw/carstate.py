@@ -2,7 +2,6 @@ from opendbc.can import CANParser
 from opendbc.car import Bus, structs
 from opendbc.car.common.conversions import Conversions as CV
 from opendbc.car.interfaces import CarStateBase
-from opendbc.car.values import DBC
 from opendbc.sunnypilot.car.bmw.mads import MadsCarState
 
 
