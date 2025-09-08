@@ -6,7 +6,7 @@ from opendbc.car import Bus
 class CarController(CarControllerBase):
   def __init__(self, dbc_names, CP, CP_SP):
     super().__init__(dbc_names, CP, CP_SP)
-    self.packer = CANPacker(dbc_names[Bus.pt])
+    self.packer = CANPacker(dbc_names[Bus.main])
     self.cnt = 0
     self.cycle = 0
 
@@ -57,7 +57,7 @@ class CarController(CarControllerBase):
       values["crc1"] = frame_id & 0xFF
       values["cnt1"] = (frame_id >> 8) & 0b111
 
-      msg = self.packer.make_can_msg("ACC", Bus.pt, values)
+      msg = self.packer.make_can_msg("ACC", Bus.main, values)
       can_sends.append(msg)
 
     self.frame += 1
