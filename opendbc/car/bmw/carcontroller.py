@@ -57,7 +57,7 @@ class CarController(CarControllerBase):
       values["crc1"] = frame_id & 0xFF
       values["cnt1"] = (frame_id >> 8) & 0b111
 
-      msg = self.packer.make_can_msg("ACC", Bus.main, values)
+      msg = self.packer.make_can_msg("ACC", 0, values)
       can_sends.append(msg)
 
     self.frame += 1
