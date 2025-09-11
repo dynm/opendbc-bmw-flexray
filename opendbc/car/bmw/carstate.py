@@ -6,6 +6,8 @@ from opendbc.sunnypilot.car.bmw.mads import MadsCarState
 
 
 class CarState(CarStateBase, MadsCarState):
+  _last_state = None
+  _last_state_sp = None
   def __init__(self, CP: structs.CarParams, CP_SP: structs.CarParamsSP):
     super().__init__(CP, CP_SP)
     MadsCarState.__init__(self, CP, CP_SP)
@@ -26,19 +28,26 @@ class CarState(CarStateBase, MadsCarState):
     # rl = cp.vl["wheel_speed"].get("RL", 0.0)
     # rr = cp.vl["wheel_speed"].get("RR", 0.0)
     # self.parse_wheel_speeds(ret, fl, fr, rl, rr, CV.KPH_TO_MS)
+    if cp.vl["vehicle_speed"]["cycle_count"] % 4 != 3:
+      self._last_state = ret
+      self._last_state_sp = ret_sp
+      return ret, ret_sp
 
-    ret.vEgoRaw = cp.vl["NEW_MSG_37"]["veh_speed"] * CV.KPH_TO_MS
+    ret.vEgoRaw = cp.vl["vehicle_speed"]["veh_speed"] * CV.KPH_TO_MS
     ret.vEgo, ret.aEgo = self.update_speed_kf(ret.vEgoRaw)
     ret.steeringAngleDeg = float(cp.vl["EPS_Angle"]["steering_angle"])
 
-    if "NEW_MSG_37" in cp.vl and "standstill" in cp.vl["NEW_MSG_37"]:
-      ret.standstill = bool(cp.vl["NEW_MSG_37"]["standstill"])
-    else:
-      ret.standstill = ret.vEgo < 0.01
+    ret.standstill = ret.vEgo < 0.01
+
+    ret.gearShifter = structs.CarState.GearShifter.drive
+    ret.cruiseState.enabled = True
+    ret.cruiseState.available = True
 
     # Update MADS state (exposes cruise availability for lateral-only enable)
     MadsCarState.update_mads(self, ret, can_parsers)
 
+    self._last_state = ret
+    self._last_state_sp = ret_sp
     return ret, ret_sp
 
 

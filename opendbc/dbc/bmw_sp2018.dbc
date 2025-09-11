@@ -32,11 +32,11 @@ BO_ 51 EPS_Angle: 17 XXX
 BO_ 53 NEW_MSG_35: 17 XXX
  SG_ NEW_SIGNAL_1 M : 2|3@0+ (1,0) [0|2047] "" XXX
 
-BO_ 55 NEW_MSG_37: 17 XXX
+BO_ 55 vehicle_speed: 17 XXX
  SG_ cycle_count M : 0|2@1+ (1,0) [0|3] "" XXX
  SG_ acceleration m0 : 24|16@1+ (0.002,-65) [0|65535] "" XXX
- SG_ standstill m3 : 20|4@1+ (1,0) [0|15] "" XXX
  SG_ veh_speed m3 : 24|16@1+ (0.015625,0) [0|65535] "" XXX
+ SG_ driving_status m3 : 44|2@1+ (1,0) [0|7] "" XXX
 
 BO_ 56 NEW_MSG_38: 17 XXX
  SG_ cycle_count M : 0|1@0+ (1,0) [0|3] "" XXX
