@@ -6,11 +6,11 @@ from opendbc.sunnypilot.car.bmw.mads import MadsCarState
 
 
 class CarState(CarStateBase, MadsCarState):
-  _last_state = None
-  _last_state_sp = None
   def __init__(self, CP: structs.CarParams, CP_SP: structs.CarParamsSP):
     super().__init__(CP, CP_SP)
     MadsCarState.__init__(self, CP, CP_SP)
+    self._last_state = structs.CarState()
+    self._last_state_sp = structs.CarStateSP()
   @staticmethod
   def get_can_parsers(CP, CP_SP):
     return {
@@ -24,6 +24,7 @@ class CarState(CarStateBase, MadsCarState):
     cp.dbc.name_to_msg["EPS_Angle"].ignore_checksum = True
     cp.dbc.name_to_msg["vehicle_speed"].ignore_counter = True
     cp.dbc.name_to_msg["EPS_Angle"].ignore_counter = True
+
     ret = structs.CarState()
     ret_sp = structs.CarStateSP()
 
@@ -32,16 +33,29 @@ class CarState(CarStateBase, MadsCarState):
     # rl = cp.vl["wheel_speed"].get("RL", 0.0)
     # rr = cp.vl["wheel_speed"].get("RR", 0.0)
     # self.parse_wheel_speeds(ret, fl, fr, rl, rr, CV.KPH_TO_MS)
-    if cp.vl["vehicle_speed"]["cycle_count"] % 4 != 3:
-      self._last_state = ret
-      self._last_state_sp = ret_sp
-      return ret, ret_sp
 
-    ret.vEgoRaw = cp.vl["vehicle_speed"]["veh_speed"] * CV.KPH_TO_MS
-    ret.vEgo, ret.aEgo = self.update_speed_kf(ret.vEgoRaw)
-    ret.steeringAngleDeg = float(cp.vl["EPS_Angle"]["steering_angle"])
+    # Per-signal multiplexing gates
+    veh_cc = cp.vl["vehicle_speed"].get("cycle_count", -1)
+    eps_cc = cp.vl["EPS_Angle"].get("cycle_count", -1)
+    veh_ok = (veh_cc >= 0) and (veh_cc % 4 == 3)
+    eps_ok = (eps_cc >= 0) and (eps_cc % 2 == 0)
 
-    ret.standstill = ret.vEgo < 0.01
+    # Speed update: only when vehicle_speed is on its valid cycle; otherwise reuse last values
+    if veh_ok:
+      ret.vEgoRaw = cp.vl["vehicle_speed"].get("veh_speed", 0.0) * CV.KPH_TO_MS
+      ret.vEgo, ret.aEgo = self.update_speed_kf(ret.vEgoRaw)
+    else:
+      ret.vEgoRaw = getattr(self._last_state, "vEgoRaw", 0.0)
+      ret.vEgo = getattr(self._last_state, "vEgo", 0.0)
+      ret.aEgo = getattr(self._last_state, "aEgo", 0.0)
+
+    # Steering angle update: only when EPS_Angle is on its valid cycle; otherwise reuse last value
+    if eps_ok:
+      ret.steeringAngleDeg = float(cp.vl["EPS_Angle"].get("steering_angle", 0.0))
+    else:
+      ret.steeringAngleDeg = float(getattr(self._last_state, "steeringAngleDeg", 0.0))
+
+    ret.standstill = ret.vEgoRaw < 0.01
 
     ret.gearShifter = structs.CarState.GearShifter.drive
     ret.cruiseState.enabled = True
