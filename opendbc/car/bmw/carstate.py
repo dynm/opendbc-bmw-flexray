@@ -15,7 +15,7 @@ class CarState(CarStateBase, MadsCarState):
   def get_can_parsers(CP, CP_SP):
     return {
       Bus.main: CANParser("bmw_sp2018", [], bus=0),
-      Bus.adas: CANParser("bmw_sp2018", [], bus=1),
+      # Bus.adas: CANParser("bmw_sp2018", [], bus=1),
     }
 
   def update(self, can_parsers) -> tuple[structs.CarState, structs.CarStateSP]:
