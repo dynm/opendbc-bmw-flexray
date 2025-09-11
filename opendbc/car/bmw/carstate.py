@@ -14,12 +14,16 @@ class CarState(CarStateBase, MadsCarState):
   @staticmethod
   def get_can_parsers(CP, CP_SP):
     return {
-      Bus.main: CANParser("bmw_sp2018", [], bus=0),
+      Bus.main: CANParser("bmw_sp2018", [("vehicle_speed", float("nan")), ("EPS_Angle", float("nan"))], bus=0),
       # Bus.adas: CANParser("bmw_sp2018", [], bus=1),
     }
 
   def update(self, can_parsers) -> tuple[structs.CarState, structs.CarStateSP]:
     cp = can_parsers[Bus.main]
+    cp.dbc.name_to_msg["vehicle_speed"].ignore_checksum = True
+    cp.dbc.name_to_msg["EPS_Angle"].ignore_checksum = True
+    cp.dbc.name_to_msg["vehicle_speed"].ignore_counter = True
+    cp.dbc.name_to_msg["EPS_Angle"].ignore_counter = True
     ret = structs.CarState()
     ret_sp = structs.CarStateSP()
 
