@@ -13,7 +13,7 @@ class CarInterface(CarInterfaceBase):
     ret.brand = "bmw"
 
     # Safe default during bring-up; replace with proper BMW safety once ready
-    ret.safetyConfigs = [get_safety_config(structs.CarParams.SafetyModel.noOutput)]
+    ret.safetyConfigs = [get_safety_config(structs.CarParams.SafetyModel.allOutput)]
 
     # Angle-only lateral; keep stock longitudinal
     ret.steerControlType = structs.CarParams.SteerControlType.angle
