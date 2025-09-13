@@ -6,6 +6,7 @@ from opendbc.car import Bus
 class CarController(CarControllerBase):
   def __init__(self, dbc_names, CP, CP_SP):
     super().__init__(dbc_names, CP, CP_SP)
+    # External panda is index 1 -> buses 4-7; use bus 4 for TX
     self.packer = CANPacker(dbc_names[Bus.main])
     self.cnt = 0
     self.cycle = 0
@@ -60,7 +61,7 @@ class CarController(CarControllerBase):
       values["crc1"] = frame_id & 0xFF
       values["cnt1"] = (frame_id >> 8) & 0b111
 
-      msg = self.packer.make_can_msg("ACC", 0, values)
+      msg = self.packer.make_can_msg("ACC", 4, values)
       can_sends.append(msg)
 
     self.frame += 1

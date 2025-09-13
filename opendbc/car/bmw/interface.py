@@ -12,8 +12,12 @@ class CarInterface(CarInterfaceBase):
   def _get_params(ret: structs.CarParams, candidate, fingerprint, car_fw, alpha_long, is_release, docs) -> structs.CarParams:
     ret.brand = "bmw"
 
-    # Safe default during bring-up; replace with proper BMW safety once ready
-    ret.safetyConfigs = [get_safety_config(structs.CarParams.SafetyModel.allOutput)]
+    # Multi-panda: keep internal panda (index 0) for peripherals/fan only, external panda (index 1) for CAN
+    # panda[0] -> NO_OUTPUT, panda[1] -> ALL_OUTPUT (temporary until BMW safety is ready)
+    ret.safetyConfigs = [
+      get_safety_config(structs.CarParams.SafetyModel.noOutput),   # internal panda
+      get_safety_config(structs.CarParams.SafetyModel.allOutput),  # external panda
+    ]
 
     # Angle-only lateral; keep stock longitudinal
     ret.steerControlType = structs.CarParams.SteerControlType.angle

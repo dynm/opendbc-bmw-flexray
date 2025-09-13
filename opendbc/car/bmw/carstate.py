@@ -12,7 +12,8 @@ class CarState(CarStateBase, MadsCarState):
     # Use CarStateBase.out / out_sp as rolling previous-state buffers
   @staticmethod
   def get_can_parsers(CP, CP_SP):
-    cp_main = CANParser("bmw_sp2018", [("vehicle_speed", float("nan")), ("EPS_Angle", float("nan"))], bus=0)
+    # External panda is index 1 -> buses 4-7. Use bus 4 for main traffic.
+    cp_main = CANParser("bmw_sp2018", [("vehicle_speed", float("nan")), ("EPS_Angle", float("nan"))], bus=4)
     # One-time DBC config; avoid doing this in the control loop
     cp_main.dbc.name_to_msg["vehicle_speed"].ignore_checksum = True
     cp_main.dbc.name_to_msg["EPS_Angle"].ignore_checksum = True
