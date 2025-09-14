@@ -2,23 +2,29 @@ from opendbc.can import CANParser
 from opendbc.car import Bus, structs
 from opendbc.car.common.conversions import Conversions as CV
 from opendbc.car.interfaces import CarStateBase
-from opendbc.sunnypilot.car.bmw.mads import MadsCarState
 
 
-class CarState(CarStateBase, MadsCarState):
+class CarState(CarStateBase):
   def __init__(self, CP: structs.CarParams, CP_SP: structs.CarParamsSP):
     super().__init__(CP, CP_SP)
-    MadsCarState.__init__(self, CP, CP_SP)
     # Use CarStateBase.out / out_sp as rolling previous-state buffers
   @staticmethod
   def get_can_parsers(CP, CP_SP):
     # External panda is index 1 -> buses 4-7. Use bus 4 for main traffic.
-    cp_main = CANParser("bmw_sp2018", [("vehicle_speed", float("nan")), ("EPS_Angle", float("nan"))], bus=4)
+    cp_main = CANParser("bmw_sp2018", [("vehicle_speed", float("nan")), ("EPS_Angle", float("nan")), ("ACC", float("nan")), ("NEW_MSG_38", float("nan")), ("steer_torque", float("nan"))], bus=4)
     # One-time DBC config; avoid doing this in the control loop
     cp_main.dbc.name_to_msg["vehicle_speed"].ignore_checksum = True
     cp_main.dbc.name_to_msg["EPS_Angle"].ignore_checksum = True
     cp_main.dbc.name_to_msg["vehicle_speed"].ignore_counter = True
     cp_main.dbc.name_to_msg["EPS_Angle"].ignore_counter = True
+    # ACC RX is currently synthetic; ignore checks until real CRC/counter implemented
+    cp_main.dbc.name_to_msg["ACC"].ignore_checksum = True
+    cp_main.dbc.name_to_msg["ACC"].ignore_counter = True
+    # Yaw and driver torque parsing; ignore checks for now
+    cp_main.dbc.name_to_msg["NEW_MSG_38"].ignore_checksum = True
+    cp_main.dbc.name_to_msg["NEW_MSG_38"].ignore_counter = True
+    cp_main.dbc.name_to_msg["steer_torque"].ignore_checksum = True
+    cp_main.dbc.name_to_msg["steer_torque"].ignore_counter = True
 
     return {
       Bus.main: cp_main,
@@ -71,11 +77,24 @@ class CarState(CarStateBase, MadsCarState):
     ret.standstill = ret.vEgoRaw < 0.01
 
     ret.gearShifter = structs.CarState.GearShifter.drive
-    ret.cruiseState.enabled = True
+    # ACC assist_mode demux with cycle base 1
+    acc_found, acc_assist_mode = self._demux_last(cp, "ACC", "cycle_count", "assist_mode", cycle_base=1)
+    ret.cruiseState.enabled = bool(int(acc_assist_mode)) if acc_found else bool(prev.cruiseState.enabled)
     ret.cruiseState.available = True
 
-    # Update MADS state (exposes cruise availability for lateral-only enable)
-    MadsCarState.update_mads(self, ret, can_parsers)
+    # Yaw rate (deg/s -> rad/s), demux cycle base 0
+    yaw_found, yaw_deg_s = self._demux_last(cp, "NEW_MSG_38", "cycle_count", "yaw", cycle_base=0)
+    if yaw_found:
+      ret.yawRate = float(yaw_deg_s) * CV.DEG_TO_RAD
+    else:
+      ret.yawRate = float(prev.yawRate)
+
+    # Driver steering torque (native units from CAN)
+    steering_torque_found, steering_torque = self._demux_last(cp, "steer_torque", "cycle_count", "steering_torque", cycle_base=0)
+    if steering_torque_found:
+      ret.steeringTorque = float(steering_torque)
+    else:
+      ret.steeringTorque = float(prev.steeringTorque)
 
     return ret, ret_sp
 

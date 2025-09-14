@@ -1,35 +1,28 @@
 """
-Minimal MADS integration for BMW.
+Copyright (c) 2021-, Haibin Wen, sunnypilot, and a number of other contributors.
 
-This enables MADS (lateral-only enable/disable flow) by ensuring
-cruise availability is exposed to the stack. HUD/icons and
-brand-specific toggles can be added later when signals are known.
+This file is part of sunnypilot and is licensed under the MIT License.
+See the LICENSE.md file in the root directory for more details.
 """
+from collections import namedtuple
 
-from enum import StrEnum
-
-from opendbc.car import Bus, structs
-from opendbc.can.parser import CANParser
-from opendbc.sunnypilot.mads_base import MadsCarStateBase
+from opendbc.car import structs
+MadsDataSP = namedtuple("MadsDataSP",
+                        ["control_type"])
 
 
-class MadsCarState(MadsCarStateBase):
-  def __init__(self, CP: structs.CarParams, CP_SP: structs.CarParamsSP):
-    super().__init__(CP, CP_SP)
+class MadsCarController:
+  def __init__(self):
+    super().__init__()
+    self.mads = MadsDataSP(False)
 
   @staticmethod
-  def get_parser(CP, CP_SP, pt_messages, cam_messages) -> None:
-    # Placeholder for future BMW-specific MADS signals (e.g., LKAS button, HUD)
-    # When signals are identified, append to pt_messages/cam_messages here.
-    pass
+  def mads_status_update(CC: structs.CarControl, CC_SP: structs.CarControlSP) -> MadsDataSP:
+    # Mirror Tesla behavior: use angle control when MADS steering-only is active
+    mads_steering_only = CC_SP.mads.available and not CC.enabled
+    control_type = 2 if mads_steering_only else 1
 
-  def update_mads(self, ret: structs.CarState, can_parsers: dict[StrEnum, CANParser]) -> None:
-    # For lateral-only usage, exposing cruise availability is sufficient.
-    # If a proper ACC main toggle signal is found later, set available based on that.
-    if ret.cruiseState is None:
-      ret.cruiseState = structs.CarState.CruiseState()
+    return MadsDataSP(control_type)
 
-    # Default to available so MADS can be enabled; refine when ACC MAIN signal is mapped.
-    ret.cruiseState.available = True
-
-
+  def update(self, CC: structs.CarControl, CC_SP: structs.CarControlSP) -> None:
+    self.mads = self.mads_status_update(CC, CC_SP)
