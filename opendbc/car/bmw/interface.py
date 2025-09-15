@@ -37,4 +37,8 @@ class CarInterface(CarInterfaceBase):
     ret.lateralTuning.pid.kiV = [0.2]
     return ret
 
-
+  @staticmethod
+  def _get_params_sp(stock_cp: structs.CarParams, ret: structs.CarParamsSP, candidate, fingerprint: dict[int, dict[int, int]],
+                     car_fw: list[structs.CarParams.CarFw], alpha_long: bool, docs: bool) -> structs.CarParamsSP:
+    # Ensure BMW returns a valid CarParamsSP (even if no brand-specific tweaks yet)
+    return ret

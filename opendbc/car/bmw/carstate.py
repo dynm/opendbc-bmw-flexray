@@ -11,24 +11,25 @@ class CarState(CarStateBase):
   @staticmethod
   def get_can_parsers(CP, CP_SP):
     # External panda is index 1 -> buses 4-7. Use bus 4 for main traffic.
-    cp_main = CANParser("bmw_sp2018", [("vehicle_speed", float("nan")), ("EPS_Angle", float("nan")), ("ACC", float("nan")), ("NEW_MSG_38", float("nan")), ("steer_torque", float("nan"))], bus=4)
+    cp_main = CANParser("bmw_sp2018", [("vehicle_speed", float("nan")), ("EPS_Angle", float("nan")), ("NEW_MSG_38", float("nan")), ("steer_torque", float("nan"))], bus=4)
     # One-time DBC config; avoid doing this in the control loop
     cp_main.dbc.name_to_msg["vehicle_speed"].ignore_checksum = True
     cp_main.dbc.name_to_msg["EPS_Angle"].ignore_checksum = True
     cp_main.dbc.name_to_msg["vehicle_speed"].ignore_counter = True
     cp_main.dbc.name_to_msg["EPS_Angle"].ignore_counter = True
-    # ACC RX is currently synthetic; ignore checks until real CRC/counter implemented
-    cp_main.dbc.name_to_msg["ACC"].ignore_checksum = True
-    cp_main.dbc.name_to_msg["ACC"].ignore_counter = True
     # Yaw and driver torque parsing; ignore checks for now
     cp_main.dbc.name_to_msg["NEW_MSG_38"].ignore_checksum = True
     cp_main.dbc.name_to_msg["NEW_MSG_38"].ignore_counter = True
     cp_main.dbc.name_to_msg["steer_torque"].ignore_checksum = True
     cp_main.dbc.name_to_msg["steer_torque"].ignore_counter = True
 
+    cp_sas = CANParser("bmw_sp2018", [("ACC", float("nan"))], bus=5)
+    # ACC RX is currently synthetic; ignore checks until real CRC/counter implemented
+    cp_sas.dbc.name_to_msg["ACC"].ignore_checksum = True
+    cp_sas.dbc.name_to_msg["ACC"].ignore_counter = True
     return {
       Bus.main: cp_main,
-      # Bus.adas: CANParser("bmw_sp2018", [], bus=1),
+      Bus.adas: cp_sas,
     }
 
   def _demux_last(self, cp: CANParser, msg: str, cc_sig: str, val_sig: str, cycle_base: int) -> tuple[bool, float]:
@@ -41,7 +42,7 @@ class CarState(CarStateBase):
 
   def update(self, can_parsers) -> tuple[structs.CarState, structs.CarStateSP]:
     cp = can_parsers[Bus.main]
-
+    cp_sas = can_parsers[Bus.adas]
     ret = structs.CarState()
     ret_sp = structs.CarStateSP()
 
@@ -78,7 +79,7 @@ class CarState(CarStateBase):
 
     ret.gearShifter = structs.CarState.GearShifter.drive
     # ACC assist_mode demux with cycle base 1
-    acc_found, acc_assist_mode = self._demux_last(cp, "ACC", "cycle_count", "assist_mode", cycle_base=1)
+    acc_found, acc_assist_mode = self._demux_last(cp_sas, "ACC", "cycle_count", "assist_mode", cycle_base=1)
     ret.cruiseState.enabled = bool(int(acc_assist_mode)) if acc_found else bool(prev.cruiseState.enabled)
     ret.cruiseState.available = True
 
@@ -90,7 +91,7 @@ class CarState(CarStateBase):
       ret.yawRate = float(prev.yawRate)
 
     # Driver steering torque (native units from CAN)
-    steering_torque_found, steering_torque = self._demux_last(cp, "steer_torque", "cycle_count", "steering_torque", cycle_base=0)
+    steering_torque_found, steering_torque = self._demux_last(cp, "steer_torque", "cycle_count", "driver_steer_torque", cycle_base=0)
     if steering_torque_found:
       ret.steeringTorque = float(steering_torque)
     else:
