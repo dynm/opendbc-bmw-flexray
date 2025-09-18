@@ -28,7 +28,8 @@ class CarController(CarControllerBase):
     actuators = CC.actuators
     can_sends = []
 
-    if not CC.enabled and not CC.latActive:
+    # Do not send any lateral CAN when lateral is not active
+    if not CC.latActive:
       return actuators, []
 
     lat_active = bool(CC.latActive)
