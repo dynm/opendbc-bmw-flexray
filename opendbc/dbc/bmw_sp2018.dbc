@@ -33,7 +33,7 @@ BO_ 38 NEW_MSG_26: 17 XXX
 BO_ 39 NEW_MSG_27: 17 XXX
 
 BO_ 40 maybe_gear_switch: 17 XXX
- SG_ NEW_SIGNAL_1 M : 0|2@1+ (1,0) [0|3] "" XXX
+ SG_ cycle_count M : 0|2@1+ (1,0) [0|3] "" XXX
  SG_ NEW_SIGNAL_2 m1 : 40|4@1+ (1,0) [0|255] "" XXX
  SG_ GEAR m3 : 24|4@1+ (1,0) [0|255] "" XXX
  SG_ P_locked m3 : 49|1@1+ (1,0) [0|15] "" XXX

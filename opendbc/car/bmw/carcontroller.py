@@ -48,10 +48,10 @@ class CarController(CarControllerBase):
         "assist_mode": 1 if lat_active else 0,
         "wayback_en1_lane_keeping_trigger": 0,
         "lane_keeping_triggered": 0,
-        "like_assist_torque_reserve": 0xA0,
+        "like_assist_torque_reserve": 0xA0 if lat_active else 0x00,
         "constants": 0x03ff17fe,
         "wayback_en_2": 0,
-        "steering_engaged": 2,
+        "steering_engaged": 2 if lat_active else 0,
         "maybe_assist_force_enhance": 0xA2,
         "maybe_assist_force_weaken": 0xFA,
       }

@@ -11,7 +11,7 @@ class CarState(CarStateBase):
   @staticmethod
   def get_can_parsers(CP, CP_SP):
     # External panda is index 1 -> buses 4-7. Use bus 4 for main traffic.
-    cp_main = CANParser("bmw_sp2018", [("vehicle_speed", float("nan")), ("EPS_Angle", float("nan")), ("NEW_MSG_38", float("nan")), ("steer_torque", float("nan"))], bus=4)
+    cp_main = CANParser("bmw_sp2018", [("vehicle_speed", float("nan")), ("EPS_Angle", float("nan")), ("NEW_MSG_38", float("nan")), ("steer_torque", float("nan")), ("maybe_gear_switch", float("nan"))], bus=4)
     # One-time DBC config; avoid doing this in the control loop
     cp_main.dbc.name_to_msg["vehicle_speed"].ignore_checksum = True
     cp_main.dbc.name_to_msg["EPS_Angle"].ignore_checksum = True
@@ -22,6 +22,9 @@ class CarState(CarStateBase):
     cp_main.dbc.name_to_msg["NEW_MSG_38"].ignore_counter = True
     cp_main.dbc.name_to_msg["steer_torque"].ignore_checksum = True
     cp_main.dbc.name_to_msg["steer_torque"].ignore_counter = True
+    # Gear switch parsing uses cycle base 3; ignore checks
+    cp_main.dbc.name_to_msg["maybe_gear_switch"].ignore_checksum = True
+    cp_main.dbc.name_to_msg["maybe_gear_switch"].ignore_counter = True
 
     cp_sas = CANParser("bmw_sp2018", [("ACC", float("nan"))], bus=5)
     # ACC RX is currently synthetic; ignore checks until real CRC/counter implemented
@@ -77,7 +80,28 @@ class CarState(CarStateBase):
 
     ret.standstill = ret.vEgoRaw < 0.01
 
-    ret.gearShifter = structs.CarState.GearShifter.drive
+    # Gear parsing via demux (cycle base 3). If cycle_count is absent, fallback to mux field name.
+    gear_found, gear_val = self._demux_last(cp, "maybe_gear_switch", "cycle_count", "GEAR", cycle_base=3)
+
+    if gear_found:
+      gear_int = int(gear_val)
+      if gear_int == 4:
+        ret.gearShifter = structs.CarState.GearShifter.drive
+      elif gear_int == 5:
+        ret.gearShifter = structs.CarState.GearShifter.reverse
+      elif gear_int == 2:
+        # "P or N" -> disambiguate with P_locked (1=Park, 0=Neutral)
+        p_found, p_locked_val = self._demux_last(cp, "maybe_gear_switch", "cycle_count", "P_locked", cycle_base=3)
+        if not p_found:
+          p_found, p_locked_val = self._demux_last(cp, "maybe_gear_switch", "NEW_SIGNAL_1", "P_locked", cycle_base=3)
+        p_locked_int = int(p_locked_val) if p_found else 0
+        ret.gearShifter = structs.CarState.GearShifter.park if p_locked_int == 1 else structs.CarState.GearShifter.neutral
+      else:
+        # Unknown mapping, keep previous
+        ret.gearShifter = prev.gearShifter
+    else:
+      # Fallback to previous if demux not available
+      ret.gearShifter = prev.gearShifter
     # ACC assist_mode demux with cycle base 1
     acc_found, acc_assist_mode = self._demux_last(cp_sas, "ACC", "cycle_count", "assist_mode", cycle_base=1)
     ret.cruiseState.enabled = bool(int(acc_assist_mode)) if acc_found else bool(prev.cruiseState.enabled)
